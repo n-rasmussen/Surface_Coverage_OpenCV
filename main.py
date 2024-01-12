@@ -2,7 +2,7 @@ import numpy as np
 import cv2 as cv
 import matplotlib as plt
 
-# Open Image and read it into uint8 data type (RGB data) & resize image to fit on screen
+# Open Image and read it into uint8 data type (BGR data) & resize image to fit on screen
 img = cv.imread('pPVA4.jpg')
 print(img.shape)
 img = cv.resize(img, (round(.25*img.shape[1]), round(.25*img.shape[0])))
@@ -23,22 +23,14 @@ new = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 # cv.waitKey(0)
 
 #using Canny edge detection.
-edges = cv.Canny(new, 190, 200)
+edges = cv.Canny(new, 190, 200) # threshold for edge linking
 cv.imshow("Edge detection", edges)
 cv.imwrite("Edge_detection.png", edges)
 cv.imshow("img", img)
 cv.imwrite("img.png", img)
-"""
-# cv.imshow("Edge detection", edges)
 
-# apply a threshold value to image such that the gray scale image become binary
-# ret,thresh1 = cv.threshold(new,180,255,cv.THRESH_BINARY)
-# Does look too great
-# thresh1 = cv.adaptiveThreshold(new,255,cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY,5,2)
-# thresh1 = cv.adaptiveThreshold(new,150,cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY,11,2)
-"""
 
-# dilate the edges found so they show better whhy do this???
+# dilate the edges so they are more defined.
 kernel = np.ones((2, 2))
 imgDil = cv.dilate(edges, kernel, iterations = 3)
 imgThre = cv.erode(imgDil, kernel, iterations = 3)
@@ -50,7 +42,7 @@ contours, 	hierarchy = cv.findContours(imgThre, cv.RETR_TREE, cv.CHAIN_APPROX_SI
 # cv.drawContours(img, contours, -1, (0,255,0), 3)
 # cv.imshow("w/ contours", img)
 
-
+# make a list of the large contours so that the gel contour can be manually found.
 a = []
 cont = []
 for con in contours:
@@ -72,35 +64,22 @@ for con in contours:
 print(max(a))
 print("---\nfinal number of contours: ", len(cont))
 
-# max value was 83579
-
-# img_cont = img
-# cv.drawContours(img_cont, cont[1][2], -1, (255, 255, 255), 3)
 
 # Removing Background
 # Get Dimensions
 hh, ww = img.shape[:2]
 
-# threshold on black
-# Define lower and upper limits of what we call "white-ish"
-# lower = np.array([0, 0, 0])
-# upper = np.array([0, 0, 0])
-
-# Create mask to only select black
-# thresh = cv.inRange(img, lower, upper)
-
-# invert mask so shapes are white on black background
-# thresh_inv = 255 - thresh
 # draw white contour on black background as mask
 mask = np.zeros((hh,ww), dtype=np.uint8)
-#contour number
+
+#contour number that represents hydrogel.
 num = 3
 cv.drawContours(mask,[cont[num][2]], -1, (255,255,255), cv.FILLED)
 
 # apply mask to image
 image_masked = cv.bitwise_and(img, img, mask=mask)
 
-# convert to HSV
+# convert to HSV colouring
 hsv = cv.cvtColor(image_masked, cv.COLOR_BGR2HSV)
 # set lower and upper color limits
 lowerVal = np.array([30,100 ,50])
@@ -110,31 +89,21 @@ mask2 = cv.inRange(hsv, lowerVal, upperVal)
 # apply mask to original image
 final = cv.bitwise_and(hsv, hsv, mask=mask2)
 
+# gray final image after applying mask
 gray = cv.cvtColor(final, cv.COLOR_BGR2GRAY)
 algae_area = cv.countNonZero(gray)
 print("algae_area")
 print(algae_area)
-algae_coverage = algae_area / cont[num][1] *    100
+algae_coverage = algae_area / cont[num][1] * 100
 print("Aglae Coverage %")
 print(algae_coverage)
+
 
 dst = cv.add(image_masked, final)
 cv.imshow("final", final)
 cv.imwrite("final.png", final)
 cv.imshow("hsv", hsv)
 cv.imwrite("hsv.png", hsv)
-"""
-#Display Images
-# cv.imshow("masked", mask)
-cv.imshow("img_masked", image_masked)
-# cv.imshow("img", img)
-cv.imshow("final", final)
-# cv.imshow("gray", gray)
-# cv.imshow("hsv", hsv)
-cv.imshow("over", dst)
-
-"""
-
 cv.imshow("over", dst)
 cv.imwrite("over.png", dst)
 cv.waitKey(0)
