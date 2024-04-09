@@ -1,39 +1,42 @@
+# import packages
 import numpy as np
 import cv2 as cv
+import os
 import matplotlib as plt
 
 # Open Image and read it into uint8 data type (BGR data) & resize image to fit on screen
-img = cv.imread('pPVA4.jpg')
+image = 'pPVAa4.jpg'  # image file name
+img = cv.imread(image)
+folder = image[:-4] # set folder name (here it is file name - extension (.jpeg)
+folder_path = os.path.join(os.getcwd(), folder)
+if not os.path.exists(folder_path):
+    # If the folder does not exist, create it
+    os.makedirs(folder_path)
+
 print(img.shape)
 img = cv.resize(img, (round(.25*img.shape[1]), round(.25*img.shape[0])))
 assert img is not None,  "Did not read Correctly"
 
-
-# properties of image
-px = img[100, 100]
-print(px)
-print(img.shape)
-print(img.size)
-print(img.dtype)
-
+num = 2  # contour index in list to analyze (change value to counter of interest)
 
 # convert image to gray scale and display it
-new = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+gray_scaled_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 # cv.imshow("new", new)
-# cv.waitKey(0)
+# cv.waitKey(0),
 
-#using Canny edge detection.
-edges = cv.Canny(new, 190, 200) # threshold for edge linking
+# using Canny edge detection.
+edges = cv.Canny(gray_scaled_img, 190, 200) # threshold for edge linking
 cv.imshow("Edge detection", edges)
-cv.imwrite("Edge_detection.png", edges)
+cv.imwrite("{}/Edge_detection.png".format(folder), edges)
 cv.imshow("img", img)
-cv.imwrite("img.png", img)
+cv.imwrite("{}/img.png".format(folder), img)
 
 
 # dilate the edges so they are more defined.
 kernel = np.ones((2, 2))
-imgDil = cv.dilate(edges, kernel, iterations = 3)
-imgThre = cv.erode(imgDil, kernel, iterations = 3)
+imgDil = cv.dilate(edges, kernel, iterations=3)
+imgThre = imgDil
+# imgThre = cv.erode(imgDil, kernel, iterations = 3) #eroding edges may help make contours more defined
 # cv.imshow("Dil", imgDil)
 # cv.imshow("Erod", imgThre)
 
@@ -50,7 +53,7 @@ for con in contours:
     area = cv.contourArea(con)
     a.append(area)
     i += 1
-    if area > 5000:
+    if area > 5000: # only look at contours larger than 5000 pixel^2
         perimeter = cv.arcLength(con, True)
 
         # smaller epsilon -> more vertices detected [= more precision]
@@ -73,7 +76,7 @@ hh, ww = img.shape[:2]
 mask = np.zeros((hh,ww), dtype=np.uint8)
 
 #contour number that represents hydrogel.
-num = 3
+# num = 1 # contour number
 cv.drawContours(mask,[cont[num][2]], -1, (255,255,255), cv.FILLED)
 
 # apply mask to image
@@ -82,16 +85,30 @@ image_masked = cv.bitwise_and(img, img, mask=mask)
 # convert to HSV colouring
 hsv = cv.cvtColor(image_masked, cv.COLOR_BGR2HSV)
 # set lower and upper color limits
-lowerVal = np.array([30,100 ,50])
-upperVal = np.array([100,255,200])
+lowerVal2 = np.array([28,100,0])
+upperVal2 = np.array([80,255,255])
+# (120,100,0) (80,255,255) pPVAa0
+light_green_mask = cv.inRange(hsv, lowerVal2, upperVal2)
+# mask for dark greens
+lowerVal3 = np.array([40,10,0])
+upperVal3 = np.array([75,255,200])
 # Threshold the HSV image to get only red colors
-mask2 = cv.inRange(hsv, lowerVal, upperVal)
+dark_green_mask = cv.inRange(hsv, lowerVal3, upperVal3)
+not_dark_green = cv.bitwise_not(dark_green_mask)
+light_green_mask = cv.bitwise_and(light_green_mask, not_dark_green)
+final_mask = cv.bitwise_or(light_green_mask, dark_green_mask)
 # apply mask to original image
-final = cv.bitwise_and(hsv, hsv, mask=mask2)
-
+final = cv.bitwise_and(hsv, hsv, mask=final_mask) # can change to other mask to visualize
 # gray final image after applying mask
 gray = cv.cvtColor(final, cv.COLOR_BGR2GRAY)
 algae_area = cv.countNonZero(gray)
+dark_green = cv.countNonZero(dark_green_mask)
+print('percent dark green')
+try:
+    print(dark_green/algae_area*100)
+except:
+    print("area is 0")
+
 print("algae_area")
 print(algae_area)
 algae_coverage = algae_area / cont[num][1] * 100
@@ -101,9 +118,9 @@ print(algae_coverage)
 
 dst = cv.add(image_masked, final)
 cv.imshow("final", final)
-cv.imwrite("final.png", final)
+cv.imwrite("{}/final.png".format(folder), final)
 cv.imshow("hsv", hsv)
-cv.imwrite("hsv.png", hsv)
+cv.imwrite("{}/hsv.png".format(folder), hsv)
 cv.imshow("over", dst)
-cv.imwrite("over.png", dst)
+cv.imwrite("{}/over.png".format(folder), dst)
 cv.waitKey(0)
