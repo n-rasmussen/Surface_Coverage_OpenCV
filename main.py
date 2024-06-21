@@ -4,8 +4,24 @@ import cv2 as cv
 import os
 import matplotlib as plt
 
+"""
+This code is part of the supplementary work for "Hydrogel-based Photobioreactor for Solid-State Cultivation of Chlorella Vulgaris" 
+
+This code looks at analyzing the surface coverage of algae in the hydrogel photobioreactor (hPBR). 
+
+
+--------
+
+Some material in this code was taken (or modified) from the following source: 
+"How calculate the area of irregular object in an image (opencv)?" - Antonino La Rosa
+https://stackoverflow.com/questions/64394768/how-calculate-the-area-of-irregular-object-in-an-image-opencv
+
+"""
+
+
+
 # Open Image and read it into uint8 data type (BGR data) & resize image to fit on screen
-image = 'pPVAa4.jpg'  # image file name
+image = 'cPVAa2.jpeg'  # image file name
 img = cv.imread(image)
 folder = image[:-4] # set folder name (here it is file name - extension (.jpeg)
 folder_path = os.path.join(os.getcwd(), folder)
@@ -17,16 +33,17 @@ print(img.shape)
 img = cv.resize(img, (round(.25*img.shape[1]), round(.25*img.shape[0])))
 assert img is not None,  "Did not read Correctly"
 
-num = 2  # contour index in list to analyze (change value to counter of interest)
+num = 3  # contour index in list to analyze (change value to counter of interest)
 
 # convert image to gray scale and display it
 gray_scaled_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-# cv.imshow("new", new)
+cv.imshow("grey", gray_scaled_img)
+cv.imwrite("{}/gray_scaled.png".format(folder), gray_scaled_img)
 # cv.waitKey(0),
 
 # using Canny edge detection.
 edges = cv.Canny(gray_scaled_img, 190, 200) # threshold for edge linking
-cv.imshow("Edge detection", edges)
+cv.imshow("Edge detection", edges)  
 cv.imwrite("{}/Edge_detection.png".format(folder), edges)
 cv.imshow("img", img)
 cv.imwrite("{}/img.png".format(folder), img)
@@ -34,11 +51,10 @@ cv.imwrite("{}/img.png".format(folder), img)
 
 # dilate the edges so they are more defined.
 kernel = np.ones((2, 2))
-imgDil = cv.dilate(edges, kernel, iterations=3)
-imgThre = imgDil
-# imgThre = cv.erode(imgDil, kernel, iterations = 3) #eroding edges may help make contours more defined
-# cv.imshow("Dil", imgDil)
-# cv.imshow("Erod", imgThre)
+imgDil = cv.dilate(edges, kernel, iterations=3) #
+imgThre = cv.erode(imgDil, kernel, iterations = 3) #eroding edges may help make contours more defined
+cv.imshow("Dil", imgDil)
+cv.imshow("Erod", imgThre)
 
 # Project the contour lines from the Canny method onto the original image
 contours, 	hierarchy = cv.findContours(imgThre, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
@@ -72,13 +88,14 @@ print("---\nfinal number of contours: ", len(cont))
 # Get Dimensions
 hh, ww = img.shape[:2]
 
-# draw white contour on black background as mask
+# draw white contour on black background to make a mask
 mask = np.zeros((hh,ww), dtype=np.uint8)
 
 #contour number that represents hydrogel.
 # num = 1 # contour number
 cv.drawContours(mask,[cont[num][2]], -1, (255,255,255), cv.FILLED)
-
+cv.imshow("contour", mask)
+cv.imwrite("{}/contour.png".format(folder), mask)
 # apply mask to image
 image_masked = cv.bitwise_and(img, img, mask=mask)
 
@@ -98,7 +115,7 @@ not_dark_green = cv.bitwise_not(dark_green_mask)
 light_green_mask = cv.bitwise_and(light_green_mask, not_dark_green)
 final_mask = cv.bitwise_or(light_green_mask, dark_green_mask)
 # apply mask to original image
-final = cv.bitwise_and(hsv, hsv, mask=final_mask) # can change to other mask to visualize
+final = cv.bitwise_and(hsv, hsv, mask=final_mask) # can change to other mask to visualize like dark_green_mask
 # gray final image after applying mask
 gray = cv.cvtColor(final, cv.COLOR_BGR2GRAY)
 algae_area = cv.countNonZero(gray)
